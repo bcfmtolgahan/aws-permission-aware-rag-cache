@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "engine": "8.2.0",
+  "python": "3.12.14",
+  "architecture": "aarch64",
+  "boto3": "1.42.97",
+  "valkey_client": "6.2.0",
+  "model_id": "eu.amazon.nova-micro-v1:0",
+  "embedding_model": "amazon.titan-embed-text-v2:0",
+  "embedding_dimensions": 256,
+  "similarity_threshold": 0.75,
+  "client_ms": 1410.198
+}

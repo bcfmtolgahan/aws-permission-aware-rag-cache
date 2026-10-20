@@ -1,0 +1,8 @@
+{
+  "passed": 44,
+  "failed": 0,
+  "python": "3.12.10",
+  "generated_at": "2026-10-19T14:55:15.300537+00:00",
+  "ruff": "passed",
+  "terraform_fmt": "passed"
+}

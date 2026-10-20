@@ -1,0 +1,54 @@
+{
+  "workload": "16 sequential requests per arm; two products; four admitted paraphrases each, repeated twice",
+  "transport": "IAM Lambda Invoke; client latency includes operator network; server latency excludes Lambda initialization",
+  "cache_start": "empty for each arm",
+  "model": "eu.amazon.nova-micro-v1:0",
+  "embedding_model": "amazon.titan-embed-text-v2:0",
+  "arms": {
+    "none": {
+      "requests": 16,
+      "correct": 16,
+      "generation_calls": 16,
+      "exact_hits": 0,
+      "semantic_hits": 0,
+      "median_server_ms": 540.714,
+      "p95_server_ms": 656.232,
+      "input_tokens": 6400,
+      "output_tokens": 188,
+      "embedding_tokens": 144,
+      "authority_rcu": 160.0,
+      "document_reads": 64,
+      "cache_errors": 0
+    },
+    "exact": {
+      "requests": 16,
+      "correct": 16,
+      "generation_calls": 8,
+      "exact_hits": 8,
+      "semantic_hits": 0,
+      "median_server_ms": 258.85,
+      "p95_server_ms": 619.773,
+      "input_tokens": 3200,
+      "output_tokens": 94,
+      "embedding_tokens": 72,
+      "authority_rcu": 160.0,
+      "document_reads": 32,
+      "cache_errors": 0
+    },
+    "semantic": {
+      "requests": 16,
+      "correct": 16,
+      "generation_calls": 3,
+      "exact_hits": 3,
+      "semantic_hits": 10,
+      "median_server_ms": 85.255,
+      "p95_server_ms": 577.911,
+      "input_tokens": 1200,
+      "output_tokens": 37,
+      "embedding_tokens": 117,
+      "authority_rcu": 160.0,
+      "document_reads": 12,
+      "cache_errors": 0
+    }
+  }
+}

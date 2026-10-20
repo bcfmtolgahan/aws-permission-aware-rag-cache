@@ -1,0 +1,20 @@
+{
+  "source": "https://aws.amazon.com/architecture/icons/",
+  "download": "https://d1.awsstatic.com/onedam/marketing-channels/website/public/shared/architecture-icon-release/Icon-package_07312026.5846e92413caa21490223536cc97f1269e44fa92.zip",
+  "release": "2026-07-31",
+  "modified": false,
+  "files": {
+    "lambda": "Arch_AWS-Lambda_64.svg",
+    "bedrock": "Arch_Amazon-Bedrock_64.svg",
+    "ddb": "Arch_Amazon-DynamoDB_64.svg",
+    "cache": "Arch_Amazon-ElastiCache_64.svg",
+    "s3": "Arch_Amazon-Simple-Storage-Service_64.svg",
+    "cognito": "Arch_Amazon-Cognito_64.svg",
+    "api": "Arch_Amazon-API-Gateway_64.svg",
+    "logs": "Arch_Amazon-CloudWatch_64.svg",
+    "cloud": "AWS-Cloud_32.svg",
+    "region": "Region_32.svg",
+    "vpc": "Virtual-private-cloud-VPC_32.svg",
+    "client": "Res_Client_48_Light.svg"
+  }
+}

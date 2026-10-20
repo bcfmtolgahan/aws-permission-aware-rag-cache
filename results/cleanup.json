@@ -1,0 +1,109 @@
+{
+  "execution_scope": "dedicated sandbox",
+  "region": "eu-central-1",
+  "started_at": "2026-10-19T14:15:23.610930+00:00",
+  "verified_at": "2026-10-19T14:54:43.036816+00:00",
+  "checks": [
+    {
+      "resource": "api_function",
+      "absent": true,
+      "response": "ResourceNotFoundException"
+    },
+    {
+      "resource": "test_function",
+      "absent": true,
+      "response": "ResourceNotFoundException"
+    },
+    {
+      "resource": "DynamoDB table",
+      "absent": true,
+      "response": "ResourceNotFoundException"
+    },
+    {
+      "resource": "S3 bucket",
+      "absent": true,
+      "response": "404"
+    },
+    {
+      "resource": "HTTP API",
+      "absent": true,
+      "response": "NotFoundException"
+    },
+    {
+      "resource": "Cognito pool and users",
+      "absent": true,
+      "response": "ResourceNotFoundException"
+    },
+    {
+      "resource": "Valkey replication group",
+      "absent": true,
+      "response": "ReplicationGroupNotFoundFault"
+    },
+    {
+      "resource": "Valkey subnet group",
+      "absent": true,
+      "response": "CacheSubnetGroupNotFoundFault"
+    },
+    {
+      "resource": "Valkey parameter group",
+      "absent": true,
+      "response": "CacheParameterGroupNotFound"
+    },
+    {
+      "resource": "IAM role and inline policy",
+      "absent": true,
+      "response": "NoSuchEntity"
+    },
+    {
+      "resource": "VPC",
+      "absent": true,
+      "response": "InvalidVpcID.NotFound"
+    },
+    {
+      "resource": "security group 1",
+      "absent": true,
+      "response": "InvalidGroup.NotFound"
+    },
+    {
+      "resource": "security group 2",
+      "absent": true,
+      "response": "InvalidGroup.NotFound"
+    },
+    {
+      "resource": "security group 3",
+      "absent": true,
+      "response": "InvalidGroup.NotFound"
+    },
+    {
+      "resource": "VPC endpoints",
+      "absent": true
+    },
+    {
+      "resource": "subnets",
+      "absent": true
+    },
+    {
+      "resource": "route tables",
+      "absent": true
+    },
+    {
+      "resource": "network interfaces",
+      "absent": true
+    },
+    {
+      "resource": "CloudWatch log groups",
+      "absent": true
+    },
+    {
+      "resource": "manual Valkey snapshots",
+      "absent": true
+    },
+    {
+      "resource": "Terraform managed resources",
+      "absent": true
+    }
+  ],
+  "all_absent": true,
+  "execution_role_recovered_during_teardown": true,
+  "temporary_recovery_role_removed": true
+}

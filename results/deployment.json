@@ -1,0 +1,31 @@
+{
+  "artifact_sha256": "bc597e5787c4c4da4e7e1f5ae35f6fe25540cfb743ef09bb61009a3f930f01b9",
+  "functions": [
+    {
+      "function": "api_function",
+      "code_matches_bundle": true,
+      "runtime": "python3.12",
+      "architecture": [
+        "arm64"
+      ],
+      "memory_mb": 512,
+      "similarity_threshold": "0.75"
+    },
+    {
+      "function": "test_function",
+      "code_matches_bundle": true,
+      "runtime": "python3.12",
+      "architecture": [
+        "arm64"
+      ],
+      "memory_mb": 512,
+      "similarity_threshold": "0.75"
+    }
+  ],
+  "source_sha256": {
+    "src/handler.py": "0d04d3f0a65a96a23e236c1905e1850fa87da514a695f31dc0a1da40fa56267b",
+    "src/ragcache/__init__.py": "68917146a0d2d8238e1b49ab45558834a8cbaf91c643ca86fc2e3d77db613e24",
+    "src/ragcache/aws_adapters.py": "f9d6c639a3d5db409577b17eea3238b8b76ae99816cffc8056c0dd63e4d39b77",
+    "src/ragcache/core.py": "878398129a513533b0efb39e223923805ecb7e8dc8acc580a6a0aa4f011b663a"
+  }
+}

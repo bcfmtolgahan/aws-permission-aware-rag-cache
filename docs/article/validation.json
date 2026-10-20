@@ -1,0 +1,128 @@
+{
+  "article": "ARTICLE.html",
+  "title": "Building Permission-Aware RAG Caching on AWS",
+  "language": "en",
+  "prose_word_count_including_tables": 4143,
+  "code_blocks": 18,
+  "source_excerpts": [
+    {
+      "path": "infra/main.tf",
+      "start": 126,
+      "end": 140,
+      "sha256": "af904137f421cb6a2f47ac8601f402aa439c42d0aeb1cd3bd46e6f9e5e3870c7"
+    },
+    {
+      "path": "infra/main.tf",
+      "start": 158,
+      "end": 175,
+      "sha256": "73a6411915751eaebf8340ab7c883de46ab1c9a37d60954a975df8a75367c7d7"
+    },
+    {
+      "path": "src/ragcache/aws_adapters.py",
+      "start": 24,
+      "end": 48,
+      "sha256": "d4e18b3a75ee10546d739fdce239bb55e1a85d36fec390ea08b4308010dbda49"
+    },
+    {
+      "path": "src/ragcache/core.py",
+      "start": 87,
+      "end": 95,
+      "sha256": "ca4e832b0e2f1564b90b6c8721d43266cd2a88616437c28074f65e3936e76594"
+    },
+    {
+      "path": "src/ragcache/aws_adapters.py",
+      "start": 120,
+      "end": 121,
+      "sha256": "bbfa71b9cd01b2b080b2e88ef789c5306f1f1113e754c5b56f3bfa6f922afbf5"
+    },
+    {
+      "path": "src/handler.py",
+      "start": 26,
+      "end": 29,
+      "sha256": "ec1a96decef6fdb282b52cf76e8622af55c5792fb461148de1eea589092b5d5e"
+    },
+    {
+      "path": "src/ragcache/core.py",
+      "start": 113,
+      "end": 120,
+      "sha256": "f1d37414baea09f13c1f366fce34a194864ec0a3337946d7430654f3d0d20cfa"
+    },
+    {
+      "path": "src/ragcache/core.py",
+      "start": 209,
+      "end": 218,
+      "sha256": "02c35266ad7f425282a3914691d4812c0f85f23d6a18124424256659ebda33f2"
+    },
+    {
+      "path": "scripts/lab.py",
+      "start": 112,
+      "end": 126,
+      "sha256": "09295c1bdc187a283599c395cf483f6cf55c73f85ed5ca38832552e97143eaf6"
+    },
+    {
+      "path": "src/ragcache/core.py",
+      "start": 38,
+      "end": 55,
+      "sha256": "a1bf51c9d79641cd7afdc6806200a270605586d030bf933a1fa72fe3ea9d1ee0"
+    },
+    {
+      "path": "src/ragcache/aws_adapters.py",
+      "start": 109,
+      "end": 117,
+      "sha256": "747200cd4d7cd885a90c4d2501ed5c046a0562018700f92465714ea9016edefd"
+    },
+    {
+      "path": "src/ragcache/aws_adapters.py",
+      "start": 144,
+      "end": 157,
+      "sha256": "2cec53870cba3967ee8ea21a173710bbf8a4104b591fa08f1d4f57e15bea4680"
+    },
+    {
+      "path": "src/ragcache/core.py",
+      "start": 223,
+      "end": 229,
+      "sha256": "e7fdb74b9bf7ba41905ce6099b36b20c1bd5f885f19c34db341e2ede23f7dbbe"
+    },
+    {
+      "path": "scripts/lab.py",
+      "start": 326,
+      "end": 331,
+      "sha256": "6e1fd188b81870278aa71c5aa2c3b285a26dfa1229d7f526206f62788edc258a"
+    },
+    {
+      "path": "scripts/lab.py",
+      "start": 339,
+      "end": 343,
+      "sha256": "7e194ee2c9e8d6e279c6ce1fa837e89677fc8c41d7b0ef31f9b1f49bcc934f2c"
+    },
+    {
+      "path": "infra/main.tf",
+      "start": 41,
+      "end": 48,
+      "sha256": "53ec7156367f2d1c5fc3349fdff7aa5bfb354689b0f2ab05f403a9c393fe01a4"
+    }
+  ],
+  "embedded_official_icon_diagrams": 3,
+  "headings": [
+    "Two tenants, different retention policies",
+    "The deployed AWS path",
+    "Private networking and Terraform",
+    "Read the principal and corpus together",
+    "What belongs in the cache key",
+    "When a new document changes an old answer",
+    "The negated question scored 0.960",
+    "Valkey's filtered KNN lookup",
+    "The final authorization read",
+    "Revoking access while Lambda is running",
+    "What passed on AWS",
+    "48 requests, three cache modes",
+    "Run the same experiment",
+    "Clean up the role after Lambda releases its interfaces",
+    "What this implementation leaves open"
+  ],
+  "raw_benchmark_recomputed": true,
+  "local_links_verified": true,
+  "source_excerpts_verified": true,
+  "browser_render_checked": false,
+  "article_sha256": "314de3ba586376b6d279d014102c0e4f7512d1f92d7cc3e55f2d44c7dcb04e83"
+}

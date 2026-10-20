@@ -1,0 +1,10 @@
+Application source and authored documentation: MIT (see LICENSE).
+
+AWS Architecture Icons under docs/icons and embedded in docs/diagrams are
+unmodified Amazon Web Services assets from the official 2026-07-31 release.
+The MIT license does not relicense these third-party icons. AWS service names
+and marks belong to their respective owners.
+Source and usage guidance: https://aws.amazon.com/architecture/icons/
+
+These diagrams describe an independent experiment. Use of official icons
+does not imply AWS authorship, certification, endorsement or support.

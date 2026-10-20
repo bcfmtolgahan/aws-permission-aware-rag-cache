@@ -1,0 +1,102 @@
+{
+  "generated_at": "2026-10-19T14:31:12.048002+00:00",
+  "execution_scope": "dedicated sandbox",
+  "region": "eu-central-1",
+  "tests": [
+    {
+      "name": "public API requires authentication",
+      "passed": true
+    },
+    {
+      "name": "modified JWT signature is rejected",
+      "passed": true
+    },
+    {
+      "name": "client cannot select tenant or inject test hooks",
+      "passed": true
+    },
+    {
+      "name": "authenticated HTTP API generates and disables downstream caching",
+      "passed": true
+    },
+    {
+      "name": "exact cache hit avoids generation",
+      "passed": true
+    },
+    {
+      "name": "admitted paraphrase uses real Valkey vector search",
+      "passed": true
+    },
+    {
+      "name": "same-tenant equivalent entitlements can share an answer",
+      "passed": true
+    },
+    {
+      "name": "same-tenant restricted user cannot reuse internal answer",
+      "passed": true
+    },
+    {
+      "name": "different tenant cannot reuse identical-question answer",
+      "passed": true
+    },
+    {
+      "name": "revocation works with old JWT and old cache entries still present",
+      "passed": true
+    },
+    {
+      "name": "new grant changes the authorized answer view",
+      "passed": true
+    },
+    {
+      "name": "disabled principal cannot read a warm cache",
+      "passed": true
+    },
+    {
+      "name": "new document invalidates answers whose old sources did not change",
+      "passed": true
+    },
+    {
+      "name": "source replacement invalidates old answer",
+      "passed": true
+    },
+    {
+      "name": "controlled revocation race at after_lookup",
+      "passed": true
+    },
+    {
+      "name": "controlled revocation race at after_generate",
+      "passed": true
+    },
+    {
+      "name": "controlled revocation race at before_final_authorize",
+      "passed": true
+    },
+    {
+      "name": "controlled corpus publication race rejects obsolete generation",
+      "passed": true
+    },
+    {
+      "name": "post-authorization boundary and delayed cache fill are explicit",
+      "passed": true,
+      "boundary": "First response authorized before revocation; late fill is not reusable by revoked user"
+    },
+    {
+      "name": "authority fault fails closed in all cache modes",
+      "passed": true,
+      "fault_method": "IAM-only handler injects authority failure before final read; not a service outage"
+    },
+    {
+      "name": "Valkey authentication rejection falls back to authorized generation",
+      "passed": true,
+      "fault_method": "real Valkey TLS connection with intentionally invalid AUTH token"
+    },
+    {
+      "name": "date negation and audience qualifiers bypass semantic reuse",
+      "passed": true
+    },
+    {
+      "name": "changed S3 object bytes fail the authoritative source hash",
+      "passed": true
+    }
+  ]
+}

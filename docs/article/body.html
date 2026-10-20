@@ -1,0 +1,234 @@
+<header>
+  <p class="eyebrow">Amazon Bedrock · Amazon ElastiCache · Authorization</p>
+  <h1>Building Permission-Aware RAG Caching on AWS</h1>
+  <p class="deck">A working implementation with Bedrock, Valkey and DynamoDB, tested while permissions and source documents change.</p>
+  <p class="byline">bcfmtolgahan <span>·</span> October 2026</p>
+</header>
+
+{{figure:cover}}
+
+<aside class="tldr">
+  <p><strong>TL;DR</strong> I built a Bedrock answer cache that checks current DynamoDB permissions before returning a hit. Changing a grant or publishing a document changes which cache entries a request can use, without deleting the old entries. I compared three modes with {{value:requests_per_mode}} requests each: the semantic mode needed {{value:generation_semantic}} generation calls, versus {{value:generation_none}} without caching, with median service latency of {{value:median_semantic}} ms versus {{value:median_none}} ms. Those numbers come from a small, repeated workload. Race tests also showed the limit: revocation after the final authorization read can still race with delivery.</p>
+</aside>
+
+<p>I generated a retention-policy answer for a user who could read internal documents. The answer said 90 days. Then I removed that user's internal access and asked the same question with the same Cognito token.</p>
+<p>I had issued no cache deletion. The API accepted the same token and returned 30 days, from the public policy.</p>
+<p>The same question now needed a different answer. A tenant ID in the cache key would not catch this change: two people in the same organization can have different document access. A user ID would isolate their entries, but that user's permissions can change too.</p>
+<p>A RAG answer also depends on the document collection it was generated from. Rechecking the old source documents misses another case: a newly published document can change the correct answer even when every old source remains untouched.</p>
+<p>I used DynamoDB to decide which source view was current, and included that view in the cache key. The code below comes from the <a href="README.md">accompanying repository</a>, including the Terraform and the driver that tested permission changes against running Lambda invocations.</p>
+
+<h2 id="fixture">Two tenants, different retention policies</h2>
+
+<p>I used two synthetic organizations, <code>acme</code> and <code>globex</code>, with two products each. Public and internal policies deliberately disagree. Within a product, the model is instructed to use the authorized source with the highest numeric priority.</p>
+
+<div class="table-wrap"><table>
+  <caption>Fixture values for Atlas. “Public” is a document entitlement, not anonymous access.</caption>
+  <thead><tr><th>Tenant</th><th>Public policy</th><th>Internal policy</th><th>Users</th></tr></thead>
+  <tbody>
+    <tr><td>acme</td><td>30 days</td><td>90 days</td><td>Alice and Carol: both scopes; Bob: public</td></tr>
+    <tr><td>globex</td><td>14 days</td><td>180 days</td><td>Dana: both scopes</td></tr>
+  </tbody>
+</table></div>
+
+<p>Boreal has different durations. Across both products and tenants, the fixture contains eight documents. Alice and Carol should be able to share an answer. Bob must not receive their internal answer. Dana must receive her own organization's policy even when her question is identical.</p>
+<p>Each request is a single question. There is no private chat history or personalized prompt to carry into a shared answer.</p>
+
+<h2 id="architecture">The deployed AWS path</h2>
+
+{{figure:architecture}}
+
+<p>Amazon API Gateway validates the Amazon Cognito JWT before invoking AWS Lambda. The handler takes the subject from the verified authorizer context. Its request body accepts only <code>question</code> and <code>mode</code>; the caller cannot supply a tenant, grants, or a test hook.</p>
+<p>The test driver sends a Cognito ID token, and this route has no OAuth scope requirement. An API intended to accept only access tokens needs the <a href="https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html">appropriate token and scope checks</a>; configuring a JWT authorizer alone does not make that distinction. Here, the token supplies identity and DynamoDB supplies document permissions.</p>
+<p>DynamoDB stores each user's current entitlements and each tenant's document manifest. Amazon S3 stores the source text and its embedding. ElastiCache stores generated answers, their provenance and the vectors used for semantic lookup.</p>
+<p>On a miss, Lambda loads authorized source objects, checks their SHA-256 digests, ranks their stored embeddings against the query, and sends the text to Amazon Bedrock. The code scans those vectors in-process with <code>top_k=8</code>. A baseline user can see only two or four documents, so every authorized document fits in the prompt. This run exercises source filtering and answer reuse; it does not measure selective retrieval from a large corpus.</p>
+<p>The stack ran in <code>eu-central-1</code>. Query and source embeddings used <code>amazon.titan-embed-text-v2:0</code>, with 256 dimensions and normalization enabled. Generation used Amazon Nova Micro through <code>eu.amazon.nova-micro-v1:0</code>. That is an EU cross-region inference profile, so generation can be routed to another supported EU region.</p>
+
+<h2 id="terraform">Private networking and Terraform</h2>
+
+<p>Lambda and Valkey use private subnets. S3 and DynamoDB use gateway endpoints; Bedrock Runtime uses an interface endpoint with private DNS. There is no NAT gateway in this stack.</p>
+
+{{code:endpoints}}
+
+<p>The cache is one <code>cache.t4g.small</code> node, with TLS, AUTH and encryption at rest. This is the actual resource definition:</p>
+
+{{code:cache_resource}}
+
+<p>The cache security group admits port 6379 only from the application's security group, and the Python client verifies the TLS certificate. There is one cache node, with no failover or backups.</p>
+<p>The full Terraform file also creates the Cognito pool, JWT authorizer, HTTP route, document bucket, authority table and two Lambda functions. One function serves the API. The other has an IAM-only test entry point, with no HTTP route or function URL, so race barriers and fault injection stay outside the public request schema.</p>
+<p>Both functions share the lab execution role. Its application permissions cover the owned table, document prefix and selected Bedrock models, while the VPC network-interface actions use <code>Resource = "*"</code>. Terraform generates the cache password and supplies it through Lambda environment configuration. The state therefore contains a secret and stays out of the shared repository.</p>
+
+<h2 id="authority">Read the principal and corpus together</h2>
+
+<p>In this experiment, revoking access means updating the user's DynamoDB grants. It does not mean revoking the Cognito token or signing the user out. The test deliberately keeps using the token issued before the permission change.</p>
+<p>The authority table has a <code>USER#&lt;subject&gt;</code> item containing tenant, grants, enabled status and a monotonic revision. A <code>TENANT#&lt;tenant&gt;</code> item contains the corpus version and source metadata.</p>
+<p>I first read the user consistently to discover the tenant key. Then I read that user and the corresponding tenant manifest in one <code>TransactGetItems</code> call:</p>
+
+{{code:authority}}
+
+<p>The first read is a routing hint. If the user moves tenants before the transaction, the tenant comparison rejects the request. Otherwise, the transactional read supplies the user and corpus state used for the decision.</p>
+<p>I used a transaction because independent reads can straddle a concurrent update. DynamoDB documents <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html">serializable isolation for transactional reads</a> against standard writes. This gives the application a defined snapshot for those two items. It does not lock them for the duration of the model call.</p>
+<p>The same operation runs again before returning the answer. A successful request therefore performs two routing reads and two two-item transactions. That cost remains on cache hits.</p>
+
+<h2 id="keys">What belongs in the cache key</h2>
+
+<p>The cache scope is a SHA-256 hash of the tenant, corpus version, sorted grants, pipeline fingerprint and visible document metadata:</p>
+
+{{code:scope}}
+
+<p>The document metadata includes scope, topic and priority as well as the object key, content hash and version. A changed priority can alter the answer even if the document text is unchanged.</p>
+<p>The user ID and principal revision are deliberately absent from this shared key. Alice and Carol have the same current, non-personalized source view, so they can reuse the same entry. The principal revision is checked separately in a request-specific authorization stamp. Removing and restoring a grant during a request still changes that revision.</p>
+<p>Exact matching hashes the original question string:</p>
+
+{{code:exact_key}}
+
+<p>I do not lowercase arbitrary questions for exact matching. Case normalization can change meaning, such as <code>US</code> versus <code>us</code>. Normalization is limited to the small semantic-admission grammar described below.</p>
+<p>The pipeline fingerprint also makes configuration part of the cache namespace:</p>
+
+{{code:pipeline}}
+
+<p>The fingerprint relies on declared contracts. If I change prompt semantics or retrieval behavior, I must bump the corresponding version. Keeping the same label while changing its meaning can reuse an incompatible answer; the hash cannot detect an undeclared code change.</p>
+<p>The scope filter is followed by a second check on the decoded entry:</p>
+
+{{code:entry_validation}}
+
+<p>This checks the tenant, pipeline, corpus and source dependencies independently of the Valkey search filter. It assumes a trusted publisher and cache writer. The cache records are unsigned.</p>
+
+<h2 id="sources">When a new document changes an old answer</h2>
+
+<p>An answer's dependency list contains every document passed to the model. It does not depend on which documents the model chooses to cite.</p>
+
+{{code:provenance}}
+
+<p>A source can influence the generated text without appearing in a citation. Recording the entire input set lets the final check ask whether all of those source versions remain authorized.</p>
+<p>That still leaves additions. In one test, Bob's public Atlas policy said 30 days. I added a higher-priority public amendment saying 45 days. The original document was unchanged. An implementation that only rechecked the old dependency would accept the old answer.</p>
+<p>Here, publishing any document change increments the tenant's corpus version. The new version produces a new cache namespace, including when a newly added source was absent from every previous dependency list.</p>
+
+{{code:publish}}
+
+<p>The publisher uploads objects under <code>documents/&lt;tenant&gt;/&lt;document&gt;/&lt;sha256&gt;.json</code> before conditionally replacing the manifest. Concurrent publishers must match the prior version. A failed manifest update can leave an unused object, but that object is not visible to retrieval.</p>
+<p>“Immutable” here means content-addressed and hash-verified by the application. S3 Object Lock and bucket versioning are not enabled. I tested the distinction by overwriting a fixture object: a fresh retrieval returned <code>503</code> before those bytes reached the model. A warm answer still represents its earlier verified source until the manifest changes.</p>
+<p>The tenant-wide version costs hit rate: even an unrelated or invisible document update changes the namespace. Finer partitions would need to account for newly relevant documents as well as changed dependencies. The single manifest also has DynamoDB's 400 KB item limit, so this catalog cannot grow without a schema change.</p>
+
+<h2 id="semantic">The negated question scored 0.960</h2>
+
+<p>I probed Titan embeddings before setting the cache threshold. The reference question was <code>What is the retention period for Atlas?</code>. These are actual cosine similarities from the saved probe:</p>
+
+{{table:similarity}}
+
+<p>The negated question scored 0.960. A straightforward paraphrase scored 0.780. A threshold of 0.88 would reject that paraphrase while accepting the negated question if similarity were the only condition.</p>
+<p>For this experiment, semantic reuse is admitted only for four grammatical families of unqualified retention questions about Atlas or Boreal:</p>
+
+{{code:grammar}}
+
+<p>The returned contract includes the product. Dates, negation, audience qualifiers and arbitrary questions do not receive a semantic contract. They can still use an exact answer under the current permission scope; otherwise, they generate a new answer. Passing the grammar does not remove the separate similarity threshold.</p>
+<p>I selected 0.75 after inspecting the fixture, so the benchmark is not a held-out threshold evaluation. One admitted paraphrase scores 0.741 against the canonical question and can still miss that entry. The grammar and threshold have separate jobs: the grammar limits which meanings may share an answer; the vector search finds a candidate within that limit.</p>
+<p>For two products and four question patterns, I could also key the cache directly by the parsed intent. I kept vector lookup to test the actual ElastiCache integration. A broader question set would need its own equivalence tests before I would allow semantic reuse.</p>
+
+<h2 id="valkey">Valkey's filtered KNN lookup</h2>
+
+<p>ElastiCache already provides the vector-search building blocks for <a href="https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/semantic-caching-implementation.html">read-through semantic caching</a>. The application-specific work here is deciding whose generated answer can be reused, against which corpus version, and what happens during a permission update.</p>
+<p>Each cached answer is a Valkey hash. <code>scope</code> and <code>contract</code> are TAG fields; the embedding is a 256-dimensional FLOAT32 HNSW vector with cosine distance:</p>
+
+{{code:index}}
+
+<p>The lookup restricts both tags and asks for three neighbors. Both filter values are server-generated hex digests, so raw client text is never interpolated into the query expression.</p>
+
+{{code:nearest}}
+
+<p>The adapter converts cosine distance into similarity with <code>1 - distance</code>. The service then compares the returned contract and calls <code>valid_for()</code>. An approximate-search miss leads to generation. A semantic hit still needs a query embedding; an exact hit needs neither embedding nor generation.</p>
+<p>The first integration run exposed a compatibility issue: the tested ElastiCache for Valkey 8.2.0 engine rejected the explicit <code>SORTBY</code> form of <code>FT.SEARCH</code>. The cache adapter fell back to generation, which kept the request working but failed the assertion that it was a real semantic hit.</p>
+
+{{code:vector_diagnostic}}
+
+<p>The final command uses native KNN ordering and reads <code>__embedding_score</code>. After that change, the cloud test confirmed a semantic hit with zero generation calls. This compatibility result applies to the recorded 8.2.0 engine and command forms.</p>
+
+<h2 id="revocation">The final authorization read</h2>
+
+<p>Revocation can happen after the initial snapshot, while a cache lookup or model call is in flight. Both paths converge on the same final check:</p>
+
+{{code:final_check}}
+
+{{figure:authorization-flow}}
+
+<p>If both snapshots validate but their stamps differ, the handler returns <code>409 context_changed</code> with no answer. A missing authority record, <code>enabled=false</code>, or empty grants returns <code>403</code>. An authority SDK error returns <code>503</code>; a warm cache does not override it. Handled Valkey errors allow the request to continue with authorized generation, provided the other dependencies succeed.</p>
+<p>Cache writes happen after the final check. Entries have a one-hour TTL. Fresh authority reads determine whether an entry can be reused before that TTL expires; changing permissions does not erase the stored answer.</p>
+<p>The public API sends <code>Cache-Control: no-store</code> to tell downstream HTTP caches not to store the response.</p>
+
+<h2 id="races">Revoking access while Lambda is running</h2>
+
+<p>The IAM-only test handler can pause at named barriers. The driver polls a DynamoDB marker until Lambda has reached the selected barrier, commits the permission change, then releases the invocation. That lets the test place the update on a known side of the final check.</p>
+<p>For a warm cache, the test pauses after lookup. For a miss, it can pause after generation or immediately before final authorization:</p>
+
+{{code:race_tests}}
+
+<p>All three cases returned <code>409</code> without an answer. A separate publication race changed the corpus version after generation and also returned <code>409</code>.</p>
+<p>I also tested the other side of the boundary:</p>
+
+{{code:late_boundary}}
+
+<p>That first response contains 90 days because its final authorization snapshot preceded revocation. Its late cache fill stays in the old namespace. The next request reads the new grants and returns the public 30-day answer.</p>
+<p><strong>The final transactional snapshot is the authorization linearization point.</strong> It is not atomic with HTTP delivery. Once that read has authorized a response, a later revocation can arrive too late to stop it. That is the behavior the last test expects.</p>
+<p>Likewise, rejecting delivery does not undo a Bedrock request already sent with sources authorized at the initial read. This protocol does not cancel in-flight inference or erase answers the user previously received.</p>
+
+<h2 id="verification">What passed on AWS</h2>
+
+<p>The final run passed {{value:local_tests}} local tests and {{value:cloud_tests}} AWS scenarios. These are the saved scenario results; each PASS refers to the assertions in <a href="scripts/lab.py">the test driver</a>.</p>
+
+<details class="appendix">
+  <summary>All {{value:cloud_tests}} AWS scenario results</summary>
+  {{table:tests}}
+</details>
+
+<p>The authority-failure test injects an exception before the final read; it does not induce a DynamoDB outage. The cache-authentication test uses a real TLS connection with an invalid AUTH token. The integrity test changes real S3 object bytes and restores them afterward.</p>
+<p>The old-token test makes no eviction call and checks that the total cache key count has not decreased. That count alone cannot prove that a particular entry survived. The useful assertion is that the same token receives the public answer after the DynamoDB grant changes, with no internal document in its reported dependencies.</p>
+
+<h2 id="measurements">{{value:requests_total}} requests, three cache modes</h2>
+
+<p>The benchmark sends all requests as Alice. It uses four admitted variants for each of two products, then repeats those eight strings. That gives {{value:requests_per_mode}} requests per mode and {{value:requests_total}} overall. Each mode starts with an empty answer cache after warmup, in a fixed order: no cache, exact, then exact plus semantic. Cross-user reuse is tested separately; these timings do not measure its hit rate.</p>
+
+{{table:latency}}
+
+<p>The semantic mode used {{value:generation_semantic}} generation calls instead of {{value:generation_none}}, avoiding {{value:avoided}}% in this workload. Median service latency was {{value:median_semantic}} ms, compared with {{value:median_none}} ms without caching. Its slowest request was a generation miss at {{value:p95_semantic}} ms.</p>
+<p>A semantic hit is not saved as a new exact alias. Repeating that paraphrase can therefore require another embedding. The combined mode recorded only three exact hits; the other ten reused answers came through vector search.</p>
+
+{{table:usage}}
+
+<p>DynamoDB reported 160 read capacity units in every mode. Cache hits still perform the authority reads. Semantic caching also used more query-embedding tokens than exact caching because its vector hits embed the question.</p>
+<p><code>model_calls</code> counts completed application-level <code>generate()</code> calls. It does not count SDK retry attempts or billable model requests. The token totals are the usage returned by the successful responses.</p>
+<p>Every mode passed the fixture's expected-duration check on all {{value:requests_per_mode}} requests. That check looks for the expected <code>90 days</code> or <code>120 days</code> substring. It does not evaluate every claim in an answer or establish general RAG accuracy.</p>
+<p><code>server_ms</code> measures the service inside Lambda. It excludes Lambda initialization, the public API/JWT path and the operator's network. The benchmark uses IAM Lambda Invoke; real Cognito and HTTP authentication are exercised separately by the correctness suite. Raw <code>client_ms</code> values include the invocation transport.</p>
+<p>There are only {{value:requests_per_mode}} sequential samples per mode, no concurrent load and no randomized repeated trials. With nearest-rank p95 on {{value:requests_per_mode}} samples, the reported p95 is the largest observation. These numbers describe this run; they are not a production tail-latency estimate.</p>
+<p>I would not turn the token reduction into a cost-saving percentage. These totals exclude ingestion, preflight, probes, warmup and security tests, while the cache node and two-AZ Bedrock interface endpoint incur costs while provisioned. At low traffic, that infrastructure can cost more than the saved tokens. The <a href="results/benchmark-requests.json">raw requests</a> and <a href="results/benchmark-summary.json">summary</a> contain the measured inputs.</p>
+
+<h2 id="reproduce">Run the same experiment</h2>
+
+<p>The repository contains the Python application, Terraform, test driver, dependency lockfile, diagram generator and sanitized evidence. Python 3.12, <code>uv</code>, Terraform 1.5 or newer and a dedicated AWS sandbox are the working setup.</p>
+<p>The run used one dedicated sandbox. In the shared repository, the operator configures an explicit profile and expected account ID in an ignored local file. The cloud wrapper clears ambient overrides and checks the account through STS before proceeding. Terraform independently restricts the provider:</p>
+
+{{code:provider}}
+
+<p>Replace the profile and account placeholder below with your own sandbox values. Configuration makes no AWS calls and is required before the cloud commands. The account pin, generated passwords, Terraform state and deployment outputs stay in ignored local files.</p>
+
+{{code:commands}}
+
+<p>For an automated full run, <code>uv run python scripts/run_experiment.py</code> executes the sequence and attempts teardown in a <code>finally</code> block. An interrupted machine or a failed destroy still requires the manual cleanup commands. Keep the state until deletion and absence verification finish.</p>
+<p>The recorded Lambda runtime was Python {{value:runtime_python}} on ARM64 with 512 MB memory, managed boto3 {{value:runtime_boto3}}, and packaged valkey-py {{value:runtime_valkey}}. The engine reported Valkey {{value:runtime_engine}}. The Python lockfile does not pin Lambda's managed boto3; <a href="results/runtime.json">runtime.json</a> records what actually ran.</p>
+
+<h2 id="cleanup">Clean up the role after Lambda releases its interfaces</h2>
+
+<p>The initial teardown exposed an infrastructure-ordering problem. Terraform removed the execution role before Lambda had finished reclaiming its VPC network interfaces. I restored a temporary role limited to deleting the owned interfaces, waited for reclamation, and removed that role too.</p>
+<p>The final Terraform configuration makes the application security group depend on the execution policy, retaining the role while that group still has attached interfaces. It also gives subnet and group deletion 30 minutes. This follows the dependency described in <a href="https://repost.aws/knowledge-center/lambda-eni-find-delete">AWS's Lambda ENI cleanup guidance</a>.</p>
+<p>That ordering change passed Terraform validation, but I did not deploy the entire stack a second time to validate another full teardown. The completed run's independent service checks confirmed absence across {{value:cleanup_checks}} checks, including the temporary role, interfaces, cache, data stores and Terraform-managed resources. The verification timestamp is {{value:cleanup_time}}. The <a href="results/cleanup.json">cleanup record</a> is part of the evidence.</p>
+<p>Before publishing the repository, I also replaced the local profile name with explicit operator configuration and added offline checks for private data. Those runner and packaging changes were validated locally. The application source still matches the recorded deployment; the benchmark numbers above come from that original AWS run.</p>
+
+<h2 id="limits">What this implementation leaves open</h2>
+
+<p>A larger corpus needs a different catalog and retrieval index, with publication versions that also cover newly added documents. Personalization would change the sharing key: identical document permissions are insufficient if private conversation history or a user-specific prompt can affect the answer.</p>
+<p>I have not tested concurrent request load, streaming, multi-region authority or contract changes across deployments. There is no cache-fill coordination, so simultaneous misses can generate the same answer more than once. The shared execution role, single cache node and missing per-tenant quotas also need work before this becomes a production service.</p>
+<p>Provenance records which sources entered the prompt, but does not establish that the generated answer is true. The checks depend on a trusted authority, publisher and cache writer. Prompt injection and answer quality need separate evaluation.</p>
+<p>The regression I would keep is simple: warm the internal answer, change the DynamoDB grant, and send the old token again. For this run, the response changed from 90 days to 30 days without a cache purge. The race tests show exactly how far that result extends.</p>
+
+<footer>
+  <p>Source: <a href="src/ragcache/core.py">protocol</a>, <a href="src/ragcache/aws_adapters.py">AWS adapters</a>, <a href="infra/main.tf">Terraform</a>, <a href="scripts/lab.py">cloud tests and benchmark</a>. Evidence: <a href="results/cloud-tests.json">AWS scenarios</a>, <a href="results/admission-probe.json">embedding probe</a>, <a href="results/vector-compatibility.json">Valkey compatibility</a>.</p>
+  <p>All business data is synthetic. Diagrams use unmodified <a href="https://aws.amazon.com/architecture/icons/">official AWS Architecture Icons</a> and depict this experiment. They are not an AWS reference architecture or endorsement. Code excerpts are repository excerpts, with their surrounding implementation available through the source links.</p>
+</footer>

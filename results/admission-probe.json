@@ -1,0 +1,45 @@
+{
+  "purpose": "fixture diagnostic, not a general semantic-safety evaluation",
+  "rows": [
+    {
+      "question": "What is the retention period for Atlas?",
+      "similarity_to_atlas": 1.0,
+      "admitted_contract": "retention:atlas:unqualified:v1"
+    },
+    {
+      "question": "How long does Atlas keep records?",
+      "similarity_to_atlas": 0.779669,
+      "admitted_contract": "retention:atlas:unqualified:v1"
+    },
+    {
+      "question": "How long are Atlas records stored?",
+      "similarity_to_atlas": 0.741158,
+      "admitted_contract": "retention:atlas:unqualified:v1"
+    },
+    {
+      "question": "For how long does Atlas retain data?",
+      "similarity_to_atlas": 0.824871,
+      "admitted_contract": "retention:atlas:unqualified:v1"
+    },
+    {
+      "question": "What is the retention period for Boreal?",
+      "similarity_to_atlas": 0.500075,
+      "admitted_contract": "retention:boreal:unqualified:v1"
+    },
+    {
+      "question": "What is the retention period for Atlas in 2024?",
+      "similarity_to_atlas": 0.893413,
+      "admitted_contract": null
+    },
+    {
+      "question": "What is NOT the retention period for Atlas?",
+      "similarity_to_atlas": 0.960324,
+      "admitted_contract": null
+    },
+    {
+      "question": "What is the retention period for Atlas contractors?",
+      "similarity_to_atlas": 0.811619,
+      "admitted_contract": null
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+[project]
+name = "permission-aware-rag-cache"
+version = "0.1.0"
+description = "A reproducible AWS lab for authorization-aware RAG answer caching"
+requires-python = ">=3.11"
+dependencies = ["boto3>=1.40,<2", "valkey>=6,<7"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

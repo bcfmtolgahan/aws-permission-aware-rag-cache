@@ -1,0 +1,10 @@
+{
+  "explicit_sort": {
+    "error_type": "ResponseError",
+    "message": "Unexpected argument `SORTBY`"
+  },
+  "native_knn": {
+    "matches": 1
+  },
+  "client_ms": 168.893
+}

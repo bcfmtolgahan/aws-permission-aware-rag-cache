@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Permission-Aware RAG Cache · Lab Report</title>
+<style>
+body{margin:0;background:#f4f6f8;color:#232f3e;font:17px/1.65 system-ui,sans-serif}
+main{max-width:1120px;margin:32px auto;padding:40px;background:white;border:1px solid #d8dee5}
+img{width:100%;height:auto}h1{font-size:35px;line-height:1.2}h2{margin-top:44px;font-size:25px}
+.eyebrow{color:#596575;font-size:13px;letter-spacing:.12em;text-transform:uppercase}.facts{display:flex;gap:18px;flex-wrap:wrap}
+.facts div{padding:18px 24px;background:#f4f6f8;flex:1;min-width:190px}.facts b{display:block;font-size:30px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:15px}td,th{padding:12px;text-align:right;border-bottom:1px solid #d8dee5}td:first-child,th:first-child{text-align:left}
+th{background:#f4f6f8}.scroll{overflow-x:auto}pre{background:#192330;color:#f3f6fa;padding:24px;overflow:auto;font:14px/1.65 ui-monospace,monospace}code{font-family:ui-monospace,monospace}
+a{color:#146eb4}.note{border-left:3px solid #8c4fff;padding-left:20px;color:#465363}footer{border-top:1px solid #d8dee5;margin-top:40px;padding-top:18px;font-size:14px}
+@media(max-width:720px){main{margin:0;padding:22px}h1{font-size:28px}}
+</style><main><div class="eyebrow">AWS sandbox experiment · measured evidence</div>
+<h1>Permission-Aware RAG Caching</h1>
+<p>Reusing a Bedrock answer without reusing an old authorization decision.</p>
+<img src="diagrams/cover.svg" alt="Amazon Bedrock, Amazon ElastiCache, Amazon DynamoDB and AWS Lambda">
+<div class="facts"><div><b>44</b>local tests passed</div><div><b>23</b>AWS scenarios passed</div><div><b>81.25%</b>fewer generation calls in this fixture</div></div>
+<h2>Measured comparison</h2><p>16 sequential requests per arm. Two synthetic products, four admitted phrasings per product, repeated twice. Every arm performs current authorization checks.</p>
+<div class="scroll"><table><thead><tr><th>Cache mode</th><th>Correct</th><th>Generate</th><th>Exact hit</th><th>Semantic hit</th><th>Median ms</th><th>p95 ms</th></tr></thead><tbody><tr><td>none</td><td>16/16</td><td>16</td><td>0</td><td>0</td><td>540.7</td><td>656.2</td></tr><tr><td>exact</td><td>16/16</td><td>8</td><td>8</td><td>0</td><td>258.9</td><td>619.8</td></tr><tr><td>semantic</td><td>16/16</td><td>3</td><td>3</td><td>10</td><td>85.3</td><td>577.9</td></tr></tbody></table></div>
+<p class="note">Times cover the service code inside a warm Lambda, not end-to-end HTTP latency. The sample is small, sequential and deliberately repetitive. Token savings are not a dollar-cost claim.</p>
+<h2>High similarity can still mean a different question</h2>
+<p>The genuine paraphrase “How long does Atlas keep records?” scored <b>0.780</b>. Adding “NOT” to the original question scored <b>0.960</b>. A deterministic admission grammar rejects negation, dates and audience qualifiers before semantic reuse.</p>
+<p>The 0.75 threshold was chosen from fixture diagnostics. This is not a general semantic-equivalence model; the tiny grammar could also support a direct intent-key cache.</p>
+<h2>Architecture</h2><img src="diagrams/architecture.svg" alt="AWS deployment architecture">
+<h2>The final authorization check</h2><p>Both generated and cached answers cross the same boundary. The following is extracted directly from the deployed application source:</p>
+<pre><code>        final = read_authority()
+        if final.authorization_stamp() != initial.authorization_stamp():
+            raise Changed(&quot;Authorization or corpus changed; retry with fresh context&quot;)
+        if not entry.valid_for(final, self.pipeline, scope):
+            raise Denied(&quot;Candidate dependencies are not authorized&quot;)
+</code></pre><img src="diagrams/authorization-flow.svg" alt="Authority snapshots around cache lookup or generation">
+<p class="note">The final authority snapshot is not atomic with HTTP delivery. A revocation after that snapshot may race with the current response; the next request uses current permissions. The AWS test suite explicitly exercises this boundary.</p>
+<h2>Cleanup and source</h2><p>All checked resources created by this run are absent. Verified at <code>2026-10-19T14:54:43.036816+00:00</code>.</p>
+<p><a href="results.md">Full results and limitations</a> · <a href="protocol.md">Protocol</a> · <a href="../README.md">Runbook</a> · <a href="../results/benchmark-requests.json">Per-request data</a> · <a href="../results/cleanup.json">Cleanup evidence</a></p>
+<footer>The run used a dedicated sandbox. Local account and profile identifiers are omitted. Business records are synthetic. AWS Architecture Icons are unmodified official assets; this independent experiment is not an AWS reference implementation.</footer></main></html>
