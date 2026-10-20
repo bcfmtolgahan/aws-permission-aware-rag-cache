@@ -7,7 +7,7 @@ import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TOP = ["README.md", "ARTICLE.html", "SECURITY.md", "LICENSE", "NOTICE", ".gitignore",
+TOP = ["README.md", "SECURITY.md", "LICENSE", "NOTICE", ".gitignore",
        ".python-version", "pyproject.toml", "uv.lock"]
 DIRECTORIES = ["src", "tests", "scripts", "docs", "results", ".github"]
 PATTERNS = [

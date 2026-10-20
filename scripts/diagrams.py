@@ -119,13 +119,7 @@ def main():
               text(800, 657, "Revocation after step 4 can race with delivery. The next request uses updated grants.", 20)]
     write("authorization-flow", "Authorization and cache read protocol", 1600, 750, parts)
 
-    parts = [text(800, 105, "Permission-Aware RAG Caching", 44, weight=600)]
-    for x, key, label in [(260, "bedrock", "Amazon Bedrock"), (620, "cache", "Amazon ElastiCache"),
-                           (980, "ddb", "Amazon DynamoDB"), (1340, "lambda", "AWS Lambda")]:
-        parts.append(node(key, x, 225, label, size=112))
-    parts.append(text(800, 455, "Recheck permissions before reuse", 25, "#545B64"))
-    write("cover", "Permission-Aware RAG Caching", 1600, 600, parts)
-    print("Wrote architecture, authorization flow and cover (SVG; PNG when rsvg-convert is installed)")
+    print("Wrote architecture and authorization flow (SVG; PNG when rsvg-convert is installed)")
 
 
 if __name__ == "__main__":

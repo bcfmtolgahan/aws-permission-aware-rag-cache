@@ -6,8 +6,6 @@ A runnable experiment with Amazon Bedrock, Amazon ElastiCache for Valkey, and a 
 
 The repository contains the application, disposable Terraform infrastructure, local protocol tests, controlled AWS race tests, a three-arm benchmark, and the source for the diagrams. All business data is synthetic.
 
-Read the accompanying English technical article: **[Building Permission-Aware RAG Caching on AWS](ARTICLE.html)**. The HTML embeds its diagrams and styles, includes selectable source excerpts, and derives measurement tables from the recorded JSON evidence. Source and evidence links resolve within this repository.
-
 ![AWS architecture](docs/diagrams/architecture.png)
 
 ## What this implements
@@ -20,7 +18,7 @@ Semantic matching is deliberately bounded. Only four grammatical families of unq
 
 ## Run locally
 
-Use Python 3.12, [uv](https://docs.astral.sh/uv/), and Terraform 1.5 or newer. Local tests, article validation and the package build do not require AWS credentials. The deployed runtime is Python 3.12 on arm64. `rsvg-convert` is optional for PNG rendering; SVG generation uses the Python standard library.
+Use Python 3.12, [uv](https://docs.astral.sh/uv/), and Terraform 1.5 or newer. Local tests and the package build do not require AWS credentials. The deployed runtime is Python 3.12 on arm64. `rsvg-convert` is optional for PNG rendering; SVG generation uses the Python standard library.
 
 ```bash
 git clone https://github.com/bcfmtolgahan/aws-permission-aware-rag-cache.git
@@ -88,8 +86,6 @@ Lambda releases Hyperplane network interfaces asynchronously. The application se
 | [lab.py](scripts/lab.py) | Fixtures, actual HTTP authentication tests, controlled races, benchmark |
 | [Protocol](docs/protocol.md) | Keys, consistency boundary, failures and limits |
 | [Results](docs/results.md) | Measured results and what they do not establish |
-| [HTML lab report](docs/report.html) | Browser-friendly results, diagrams and an actual source excerpt |
-| [Technical article](ARTICLE.html) | Full implementation walkthrough, Terraform, races and measured results |
 | [Raw results](results/) | Sanitized machine-readable observations |
 | [Security model](SECURITY.md) | Trust boundaries and production gaps |
 
@@ -97,7 +93,7 @@ The benchmark compares **no answer cache**, **permission-aware exact cache**, an
 
 ## Diagrams and sharing
 
-The [architecture](docs/diagrams/architecture.svg), [authorization flow](docs/diagrams/authorization-flow.svg), and [cover](docs/diagrams/cover.svg) are editable SVGs, with PNG exports. They embed unmodified official AWS Architecture Icons. [Icon provenance](docs/icons/provenance.json) records the AWS download and release. The diagrams describe this experiment; they are not an AWS reference implementation or endorsement.
+The [architecture](docs/diagrams/architecture.svg) and [authorization flow](docs/diagrams/authorization-flow.svg) are editable SVGs, with PNG exports. They embed unmodified official AWS Architecture Icons. [Icon provenance](docs/icons/provenance.json) records the AWS download and release. The diagrams describe this experiment; they are not an AWS reference implementation or endorsement.
 
 Code is MIT licensed. AWS icons retain AWS's applicable rights and usage terms; see [NOTICE](NOTICE). `scripts/package_public.py` builds a source archive from an allowlist and checks it for the pinned account ID and common secret formats. `.local/`, Terraform state and plans, credentials, generated passwords, and deployment outputs must never be committed.
 
@@ -105,12 +101,12 @@ Before sharing changes, run `uv run python scripts/audit_public.py --history` an
 
 The checked-in results describe the recorded AWS experiment. The publication changes add explicit profile/account configuration and offline privacy checks; these were checked locally without repeating the AWS deployment. The application modules under `src/` still match the source hashes in `results/deployment.json`.
 
-## Rebuild the article without AWS access
+## Regenerate results and diagrams
 
 ```bash
-uv run python scripts/build_article.py
-uv run python scripts/build_article.py --check
+uv run python scripts/report.py
+uv run python scripts/diagrams.py
 uv run python scripts/package_public.py
 ```
 
-The article's prose and styles live in `docs/article/`. Its builder extracts Python and Terraform excerpts from the implementation, embeds the official-icon SVG diagrams, and checks the aggregate measurements against all 48 raw observations. `--check` also verifies local links and detects stale generated output. It performs static validation, not a browser render. No AWS credentials or deployment are required.
+These commands rebuild the results document from the recorded JSON evidence, render the architecture and authorization flow, and package the source. They require no AWS credentials and do not rerun the cloud experiment.
